@@ -163,29 +163,6 @@ def statsAgainstTeam():
 
 
 
-def determine_y_axis():
-  root = tk.Tk()
-  root.title("Premier League Stats")
-  root.geometry("500x900")
-
-  y_axis = tk.Label(root,text="Select the stat on the Y axis")
-  y_axis.grid(row=0,column=0)
-
-  goals = tk.Button(root,text="Goals",command=lambda:determine_x_axis("goals_scored"))
-  goals.grid(row=1,column=0)
-
-  xg = tk.Button(root,text="Expected Goals (xG)",command=lambda: determine_x_axis("xg_value"))
-  xg.grid(row=2,column=0)
-
-  goals_conceded = tk.Button(root,text="Goals Conceded",command=lambda: determine_x_axis("goals_conceded"))
-  goals_conceded.grid(row=3,column=0)
-
-  expected_goals_conceded = tk.Button(root,text="Expected Goals Conceded",command=lambda: determine_x_axis("xg_conceded"))
-  expected_goals_conceded.grid(row=4,column=0)
-
-  root.mainloop()
-
-
 statsPerTeam()
 statsAgainstTeam()
 
@@ -194,3 +171,7 @@ data = cursor.fetchall()
 for row in data:
     print(row)
 
+
+# Closing the cursor and connection
+cursor.close()
+connection.close()
