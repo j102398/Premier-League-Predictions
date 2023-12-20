@@ -1,5 +1,4 @@
-from PIL import ImageTk, Image
-import tkinter as tk
+import datetime
 import requests
 from bs4 import BeautifulSoup
 import sqlite3
@@ -17,7 +16,7 @@ players_used_elements = soup.find_all(attrs={"data-stat":"players_used"})
 team_elements = soup.find_all(attrs={"data-stat":"team"})
 nationality_elements = soup.find_all(attrs={"data-stat":"nationality"})
 position_elements = soup.find_all(attrs={"data-stat":"position"})
-age_elements = soup.find_all(attrs={"data-stat":"age"})
+age_elements = soup.find_all(attrs={"data-stat":"avg_age"})
 possession_elements = soup.find_all(attrs={"data-stat":"possession"})
 #Starts and minutes
 games_elements = soup.find_all(attrs={"data-stat":"games"})
@@ -73,29 +72,40 @@ cursor.execute('''
         team_name TEXT,
         xg_value REAL,
         goals_scored INTEGER
+        
     )
 ''')
 
+
+#Adding the rest of the columns
 cursor.execute("PRAGMA table_info(teamStats)")
 columns = cursor.fetchall()
 column_names = [col[1] for col in columns]
+# Create a list of columns that need to be added
+ColumnsToBeAdded = ['xg_conceded', 'goals_conceded', 'average_age', 'yellow_cards']
+TypeOfData = [' REAL', ' INTEGER', ' REAL', ' INTEGER']
 
-if 'xg_conceded' not in column_names:
+for column, dataType in zip(ColumnsToBeAdded, TypeOfData):
+    if column not in column_names:
+        # Create a query variable as referencing py variables
+        query = "ALTER TABLE teamStats ADD COLUMN " + column + dataType
+        cursor.execute(query)
+        connection.commit()
+
+
+#Add the time
+
+if 'date_and_time' not in column_names:
     cursor.execute('''
-        ALTER TABLE teamStats
-        ADD COLUMN xg_conceded REAL
-    ''')
-    connection.commit()
-
-
-if 'goals_conceded' not in column_names:
-    cursor.execute('''
-        ALTER TABLE teamStats
-        ADD COLUMN goals_conceded INTEGER
+    ALTER TABLE teamStats 
+    ADD COLUMN date_and_time TEXT 
     ''')
     connection.commit()
 
 cursor.execute('DELETE FROM teamStats')
+
+time_now = datetime.datetime.now()
+print(time_now)
 
 #Filtering process to get the stats FOR teams -----------
 #Create a variable to ensure there are only 20 teams
@@ -103,10 +113,11 @@ cursor.execute('DELETE FROM teamStats')
 
 def statsPerTeam():
   row = 0
-  for team, xg, goals, players in zip(team_elements, xg_elements, goals_elements, players_used_elements):
+  for team, xg, goals, players,age in zip(team_elements, xg_elements, goals_elements, players_used_elements,age_elements):
       team_text = team.get_text(strip=True)
       xg_text = xg.get_text(strip=True)
       goals_text = goals.get_text(strip=True)
+      age_text = age.get_text(strip=True)
       # Filter out players as we only want team stats by checking if there is a value for players_used
       if players:
           # Filter out stats against teams and rows used as headers
@@ -115,9 +126,10 @@ def statsPerTeam():
               if goals_text.isdigit():
                   goals_count = int(goals_text)
                   xg_value = float(xg_text)
+                  age_value = float(age_text)
                   # Insert stats into database
-                  cursor.execute('INSERT OR REPLACE into teamStats (team_name, xg_value, goals_scored) VALUES (?,?,?)',
-                                 (team_text, xg_value, goals_count))
+                  cursor.execute('INSERT OR REPLACE into teamStats (team_name, xg_value, goals_scored,average_age,date_and_time) VALUES (?,?,?,?,?)',
+                                 (team_text, xg_value, goals_count,age_value,time_now))
                   connection.commit()
                   #print(age_text,possession_text)
                   row += 1
