@@ -68,8 +68,8 @@ columns = cursor.fetchall()
 column_names = [col[1] for col in columns]
 # Create a list of columns that need to be added
 ColumnsToBeAdded = ['xg_conceded', 'goals_conceded', 'average_age', 'yellow_cards','red_cards','pens_made',
-                    'progressive_carries']
-TypeOfData = [' REAL', ' INTEGER', ' REAL', ' INTEGER', 'INTEGER','INTEGER','INTEGER']
+                    'progressive_carries','team_abbreviation','colour_code']
+TypeOfData = [' REAL', ' INTEGER', ' REAL', ' INTEGER', 'INTEGER','INTEGER','INTEGER','TEXT','TEXT']
 
 for column, dataType in zip(ColumnsToBeAdded, TypeOfData):
     if column not in column_names:
@@ -109,7 +109,6 @@ def statsPerTeam():
         red_text = red.get_text(strip=True)
         pens_made_text = pens_made.get_text(strip=True)
         progressive_carries_text =progressive_carries.get_text(strip=True)
-
         # Filter out players as we only want team stats by checking if there is a value for players_used
         if players:
             # Filter out stats against teams and rows used as headers
@@ -123,6 +122,7 @@ def statsPerTeam():
                     red_count = int(red_text)
                     pens_made_count = int(pens_made_text)
                     progressive_carries_count = int(progressive_carries_text)
+                    print(pens_made_count)
                     # Insert stats into database
                     cursor.execute(
                         'INSERT OR REPLACE into teamStats (team_name, xg_value, goals_scored,average_age,yellow_cards,red_cards,pens_made,progressive_carries,date_and_time) VALUES (?,?,?,?,?,?,?,?,?)',
@@ -168,9 +168,64 @@ def statsAgainstTeam():
 
 
 
+def TeamConstantInfo():
+    team_abbreviations = {
+        'Arsenal': 'ARS',
+        'Aston Villa': 'AVL',
+        'Bournemouth': 'BOU',
+        'Brentford': 'BRE',
+        'Brighton': 'BHA',
+        'Burnley': 'BUR',
+        'Chelsea': 'CHE',
+        'Crystal Palace': 'CRY',
+        'Everton': 'EVE',
+        'Fulham': 'FUL',
+        'Liverpool': 'LIV',
+        'Luton Town': 'LUT',
+        'Manchester City': 'MCI',
+        'Manchester Utd': 'MUN',
+        'Newcastle Utd': 'NEW',
+        "Nott'ham Forest": 'NOT',
+        'Sheffield Utd': 'SHU',
+        'Tottenham': 'TOT',
+        'West Ham': 'WHU',
+        'Wolves': 'WOL'
+    }
+
+    team_colours_hex = {
+        'Arsenal': '#EF0107',
+        'Aston Villa': '#95BFE5',
+        'Bournemouth': '#DA291C',
+        'Brentford': '#FFDB00',
+        'Brighton': '#0057B8',
+        'Burnley': '#6C1D45',
+        'Chelsea': '#034694',
+        'Crystal Palace': '#1B458F',
+        'Everton': '#003399',
+        'Fulham': '#000000',
+        'Liverpool': '#C8102E',
+        'Luton Town': '#FFA500',
+        'Manchester City': '#6CADDF',
+        'Manchester Utd': '#DA291C',
+        'Newcastle Utd': '#241F20',
+        "Nott'ham Forest": '#FFCC00',
+        'Sheffield Utd': '#EE2737',
+        'Tottenham': '#132257',
+        'West Ham': '#7A263A',
+        'Wolves': '#FDB913'
+    }
+
+    for team, abbreviation in team_abbreviations.items():
+        hex_code = team_colours_hex.get(team, '')  # Get hex code for the team (if available)
+        cursor.execute(
+            'UPDATE teamStats SET team_abbreviation = ?, colour_code = ? WHERE team_name = ?',
+            (abbreviation, hex_code, team)
+        )
+        connection.commit()
+
 statsPerTeam()
 statsAgainstTeam()
-
+TeamConstantInfo()
 cursor.execute('SELECT * FROM teamStats')
 data = cursor.fetchall()
 for row in data:
