@@ -136,33 +136,31 @@ def statsPerTeam():
 
 
 def statsAgainstTeam():
-    # Filter To only get against stats AGAINST teams
     row = 0
-    # Ensure there are only 20 values as 20 teams
     for team, xg_conceded, goals_conceded, player in zip(team_elements, xg_elements, goals_elements,
                                                          players_used_elements):
-        # CHECK if dealing with teams, as they will have value for players used
         player_count = player.get_text(strip=True)
         if player_count:
-
-            # CHECK IF TEAM HAS VS IN , AS THE XG IDENTIFIER AND GOAL IDENTIFIER IS THE SAME AS GOALS PER TEAM
             team_text = team.get_text(strip=True)
             if team_text != "Squad" and "vs" in team_text:
                 xg_text = xg_conceded.get_text(strip=True)
                 goals_text = goals_conceded.get_text(strip=True)
+                #Splitting team text, as we need to insert it into original team row
+                team_name = team_text.split('vs ')[1]  # Extracts the opponent's name after 'vs '
                 xg_value = float(xg_text)
                 goals_count = int(goals_text)
+                print(team_name)
                 cursor.execute('''
-            UPDATE teamStats 
-            SET xg_conceded = ?, goals_conceded = ? 
-        ''', (xg_value, goals_count))
-                connection.commit()
+                    UPDATE teamStats 
+                    SET xg_conceded = ?, goals_conceded = ?
+                    WHERE team_name = ?
+                ''', (xg_value, goals_count, team_name))
+
                 connection.commit()
                 row += 1
 
         if row == 20:
             break
-        # Break when retrieved data against all 20 teams
 
 
 
