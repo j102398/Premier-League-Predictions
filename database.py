@@ -2,6 +2,7 @@ import datetime
 import requests
 from bs4 import BeautifulSoup
 import sqlite3
+from datetime import datetime
 
 pageToScrape = requests.get('https://fbref.com/en/comps/9/Premier-League-Stats')
 soup = BeautifulSoup(pageToScrape.text, "html.parser")
@@ -89,50 +90,68 @@ if 'date_and_time' not in column_names:
 
 cursor.execute('DELETE FROM teamStats')
 
-time_now = datetime.datetime.now()
-print(time_now)
+
+
+# Get the current date and time
+current_datetime = datetime.now()
+
+# Format the date and time in UK format
+date_and_time = current_datetime.strftime("%d/%m/%Y %H:%M:%S")
+
+
+
 
 
 # Filtering process to get the stats FOR teams -----------
 # Create a variable to ensure there are only 20 teams
 
-
-def statsPerTeam():
+def create_team_columns_insert_time():
     row = 0
-    for team, xg, goals, players, age,yellow,red,pens_made,progressive_carries in zip(team_elements, xg_elements, goals_elements, players_used_elements,
-                                             age_elements,yellow_cards_elements,red_cards_elements,penalties_made_elements,progressive_carries_elements):
+    for team in team_elements:
         team_text = team.get_text(strip=True)
-        xg_text = xg.get_text(strip=True)
-        goals_text = goals.get_text(strip=True)
-        age_text = age.get_text(strip=True)
-        yellow_text = yellow.get_text(strip=True)
-        red_text = red.get_text(strip=True)
-        pens_made_text = pens_made.get_text(strip=True)
-        progressive_carries_text =progressive_carries.get_text(strip=True)
-        # Filter out players as we only want team stats by checking if there is a value for players_used
-        if players:
-            # Filter out stats against teams and rows used as headers
-            if team_text != "Squad" and "vs" not in team_text:
-                # Check if there is an integer value for goals
-                if goals_text.isdigit():
-                    goals_count = int(goals_text)
-                    xg_value = float(xg_text)
-                    age_value = float(age_text)
-                    yellow_count = int(yellow_text)
-                    red_count = int(red_text)
-                    pens_made_count = int(pens_made_text)
-                    progressive_carries_count = int(progressive_carries_text)
-                    print(pens_made_count)
-                    # Insert stats into database
-                    cursor.execute(
-                        'INSERT OR REPLACE into teamStats (team_name, xg_value, goals_scored,average_age,yellow_cards,red_cards,pens_made,progressive_carries,date_and_time) VALUES (?,?,?,?,?,?,?,?,?)',
-                        (team_text, xg_value, goals_count, age_value,yellow_count,red_count,pens_made_count,progressive_carries_count,time_now))
-                    connection.commit()
-                    # print(age_text,possession_text)
-                    row += 1
-                    # print(row, team_text, xg_value, goals_count)
+        if team_text == "Squad":
+            continue
+        else:
+            cursor.execute('INSERT INTO teamStats (team_name,date_and_time) VALUES (?,?)', (team_text,date_and_time))
+        row += 1
         if row == 20:
             break
+
+
+
+def statsPerTeam():
+    for team, xg, goals, players, age, yellow, red, pens_made, progressive_carries in zip(
+            team_elements, xg_elements, goals_elements, players_used_elements,
+            age_elements, yellow_cards_elements, red_cards_elements,
+            penalties_made_elements, progressive_carries_elements
+    ):
+        team_value = team.get_text(strip=True)
+
+
+        if "vs" not in team_value and team_value != "Squad":
+            #Convert here to avoid errors (example cant convert nothing to a float)
+            xg_value = float(xg.get_text(strip=True))
+            goals_value = int(goals.get_text(strip=True))
+            age_value = float(age.get_text(strip=True))
+            yellow_value = int(yellow.get_text(strip=True))
+            red_value = int(red.get_text(strip=True))
+            pens_made_value = int(pens_made.get_text(strip=True))
+            progressive_carries_value = int(progressive_carries.get_text(strip=True))
+            cursor.execute('''
+                UPDATE teamStats
+                SET xg_value = ?,
+                    goals_scored = ?,
+                    average_age = ?,
+                    yellow_cards = ?,
+                    red_cards = ?,
+                    pens_made = ?,
+                    progressive_carries = ?
+                WHERE team_name = ?
+            ''', (
+                xg_value, goals_value, age_value, yellow_value, red_value,
+                pens_made_value, progressive_carries_value, team_value
+            ))
+            connection.commit()
 
 
 def statsAgainstTeam():
@@ -161,9 +180,6 @@ def statsAgainstTeam():
 
         if row == 20:
             break
-
-
-
 
 
 def TeamConstantInfo():
@@ -221,9 +237,18 @@ def TeamConstantInfo():
         )
         connection.commit()
 
+
+
+create_team_columns_insert_time()
 statsPerTeam()
 statsAgainstTeam()
 TeamConstantInfo()
+
+
+
+
+
+
 cursor.execute('SELECT * FROM teamStats')
 data = cursor.fetchall()
 for row in data:
