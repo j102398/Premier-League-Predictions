@@ -1,4 +1,3 @@
-import os
 import sqlite3
 import tkinter as tk
 
@@ -7,8 +6,7 @@ root.title("Stats Table ")
 root.geometry("500x900")
 
 
-global connection
-global cursor
+
 connection = sqlite3.connect('stats.db')
 cursor = connection.cursor()
 tuple_list = []  # Placeholder for tuple_list
@@ -18,33 +16,43 @@ tuple_list = []  # Placeholder for tuple_list
 
 ## Sort the new list of tuples
 
+
+
+#Determine how many buttons need to be made
+for widget in root.winfo_children():
+    widget.destroy()
+    # Determine how many columns are ( as want to determine how many functions there are)
+cursor.execute("PRAGMA table_info('teamStats')")
+columns = cursor.fetchall()
+# Create an empty list for the stats
+stat_list = []
+# Print column names
+for column in columns:
+    column_name = column[1]
+    # We don't want the 'id' ,time,abbreviation,colourcode as they aren't stat. Also removing team as the table creator covers that
+    if column_name != "id" and column_name != "date_and_time" and column_name != "team_name" and column_name != "abbreviation" and column_name!= "colour_code":
+        stat_list.append(column_name)
+    else:
+        continue
 def main_menu():
+    # Clear the window
     for widget in root.winfo_children():
         widget.destroy()
-    xg_button = tk.Button(root, text="xg", padx=5, pady=5, command=lambda: get_list("xg_value"))
-    xg_button.grid(row=0, column=0)
-
-    goals_scored_button = tk.Button(root, text="Goals Scored", padx=5, pady=5, command=lambda: get_list("goals_scored"))
-    goals_scored_button.grid(row=1, column=0)
-
-    goals_conceded_button = tk.Button(root, text="Goals Conceded", padx=5, pady=5, command=lambda: get_list("goals_conceded"))
-    goals_conceded_button.grid(row=2, column=0)
-
-    average_age_button = tk.Button(root, text="Average Age", padx=5, pady=5, command=lambda: get_list("average_age"))
-    average_age_button.grid(row=3, column=0)
-
-    yellow_cards_button = tk.Button(root, text="Yellow Cards", padx=5, pady=5, command=lambda: get_list("yellow_cards"))
-    yellow_cards_button.grid(row=0, column=1)
-
-    red_cards_button = tk.Button(root, text="Red Cards", padx=5, pady=5, command=lambda: get_list("red_cards"))
-    red_cards_button.grid(row=1, column=1)
-
-    pens_made_button = tk.Button(root, text="Penalties Made", padx=5, pady=5, command=lambda: get_list("pens_made"))
-    pens_made_button.grid(row=2, column=1)
-
-    progressive_carries_button = tk.Button(root, text="Progressive Carries", padx=5, pady=5, command=lambda: get_list("progressive_carries"))
-    progressive_carries_button.grid(row=3, column=1)
-
+    # Explain what's going on
+    x_graph_label = tk.Label(root, text="Select a stat to create a table for:")
+    x_graph_label.grid(row=0, column=0)
+    # Set the column and row to 0 as the loop will place the buttons accordingly and increment
+    column = 0
+    row = 1
+    for stat in stat_list:
+        stat = tk.Button(root, text=str(stat), command=lambda s=stat: get_list(s))
+        stat.grid(row=row, column=column)
+        # We want 4 stats per column
+        if column != 4:
+            column += 1
+        if column == 4:
+            column = 0
+            row += 1
 
 
 def get_list(stat):
@@ -59,7 +67,7 @@ def get_list(stat):
         tuple_list.append(row)
 
     sorted_list = merge_sort_tuples(tuple_list,1)
-    display_table(sorted_list)
+    display_table(sorted_list,stat,True)
 
 
 
@@ -97,14 +105,19 @@ def merge_sort_tuples(tuple_list, index):
 
 
 
-def display_table(sorted_list):
-    sorted_list.reverse()  # Reversing the sorted list to display in descending order
-    row_number = 0
+def display_table(sorted_list,stat,flip_order):
+    for widget in root.winfo_children():
+        widget.destroy()
+    tk.Label(root,text='Teams by ' + stat).grid(row=0,column=0,pady=5)
+    if flip_order == True:
+        sorted_list.reverse()  # Reversing the sorted list to display in descending order
+    row_number = 1
     for row in sorted_list:
         tk.Label(root, text=row[0]).grid(row=row_number, column=0)
         tk.Label(root, text=row[1]).grid(row=row_number, column=1)
         row_number += 1
-
+    back_to_main_menu_button(8,4)
+    flip_order_button(8,3,sorted_list,stat)
 
 
 def back_to_main_menu_button(column, row):
@@ -112,6 +125,9 @@ def back_to_main_menu_button(column, row):
     back_button.grid(row=row, column=column)
 
 
+def flip_order_button(column,row,sorted_list,stat):
+
+    flip_order_button = tk.Button(root,text='Toggle Order',padx=5,pady=5,command=lambda:display_table(sorted_list,stat,True))
+    flip_order_button.grid(row=row,column=column)
 main_menu()
-display_table(tuple_list)
 root.mainloop()
