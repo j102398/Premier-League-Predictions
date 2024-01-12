@@ -3,6 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 import sqlite3
 from datetime import datetime
+import os
 
 def scrape_and_store_team_stats():
     pageToScrape = requests.get('https://fbref.com/en/comps/9/Premier-League-Stats')
@@ -56,8 +57,22 @@ def scrape_and_store_team_stats():
     date = current_datetime.strftime('%d.%m.%Y')
     time = current_datetime.strftime('%H.%M')
 
-    db_folder = "Replace this with your desired folder location"
-    db_name = db_folder + "\\PremierLeagueStats_" + time + "_on_" + date + ".db"
+
+    # Specify the folder path
+    db_folder = "C:\\Users\\joe\\PycharmProjects\\automatic_database\\Database-Archive"
+
+    # Check if the folder exists
+    if not os.path.exists(db_folder):
+        try:
+            # Create the folder
+            os.makedirs(db_folder)
+            print("Folder '" + db_folder + "' created successfully.")
+        except Exception as e:
+            print("An error occurred while creating the folder: " + str(e))
+    else:
+        print("Folder '" + db_folder + "' already exists.")
+
+    db_name = db_folder + "\\PremierLeagueStats_" + date + "_at_" + time + ".db"
 
 
 
@@ -228,14 +243,44 @@ def scrape_and_store_team_stats():
     statsAgainstTeam()
     TeamConstantInfo()
 
-    cursor.execute('SELECT * FROM teamStats')
-    data = cursor.fetchall()
-    for row in data:
-        print(row)
-
+   
     cursor.close()
     connection.close()
 
 # Call the function to execute the code
 
 scrape_and_store_team_stats()
+
+
+
+
+
+
+
+#PLEASE REFER TO THE READ.ME ON THE GITHUB , THIS IS FOR TASK SCHEDULER SET UP
+def task_schedule_details():
+
+
+    import sys
+    import platform
+    import importlib.util
+
+    print("Python EXE     : " + sys.executable)
+    print("Architecture   : " + platform.architecture()[0])
+
+    # Specify the module name
+    module_name = "arcpy"
+
+    # Try to find the module
+    try:
+        spec = importlib.util.find_spec(module_name)
+        path_to_arcpy = spec.origin if spec else "Not found"
+    except ImportError:
+        path_to_arcpy = "Not found"
+
+    print("Path to arcpy  : " + path_to_arcpy)
+
+    input("\n\nPress ENTER to quit")
+
+
+#task_schedule_details()
