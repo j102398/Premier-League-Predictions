@@ -1,0 +1,30 @@
+Task Scheduler Setup
+
+
+Step 1 - Find the details 
+
+
+Edit line 286 of database-archive, which has the function task_schedule_details currently commented out. This will provide information which will help setting up the Task Scheduler, allowing for the program to automatically run in the background. 
+
+This should produce an output which looks like this: 
+
+  
+  Python EXE     : C:\Path\To\Your\Python\Executable
+  Architecture   : 64bit
+  Path to arcpy  : Not found
+
+Step 2 - Setup Task Scheduler
+
+    1) Search Task Scheduler in Windows Search Bar in the bottom left of the screen, and click enter
+    2) On the right hand side,click "Create Basic Task..."
+    3) Give this a task a suitable name (e.g database-automation), and description if you wish
+    4) Press Next
+    5) In the Trigger section, select an appropriate time for the task to be completed
+    6) Press Next
+    7)In the Action Tab, press Start a program and hit next
+    8) Put the output after the Python EXE , and copy into the Program / Script Field (e.g C:\Path\To\Your\Python\Executable)
+    9) In the Add Arguments field, put the name of your python program followed by .py
+    10)Press Next
+    11)Press Finish
+
+After following all these steps, the python program should add a database at a chosen  interval to your archive folder.
