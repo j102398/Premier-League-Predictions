@@ -48,6 +48,13 @@ assistsp90_elements = soup.find_all(attrs={"data-stat": "assists_per90"})
 goalsassistsp90_elements = soup.find_all(attrs={"data-stat": "goals_assists_per90"})
 non_pen_goalsp90_elements = soup.find_all(attrs={"data-stat": "goals_pens_per90"})
 
+#Standard stats
+
+points_elements = soup.find_all(attrs={"data-stat":"points"})
+wins_elements = soup.find_all(attrs={"data-stat":"wins"})
+ties_elements = soup.find_all(attrs={"data-stat":"points"})
+losses_elements =soup.find_all(attrs={"data-stat":"losses"})
+last_5_elements = soup.find_all(attrs={"data-stat":"last_5"})
 
 ###
 
@@ -119,6 +126,24 @@ def create_team_columns_insert_time():
 
 
 
+def standardStats():
+    for points,wins,ties,losses,last_5,team in zip(points_elements,wins_elements,ties_elements,losses_elements,last_5_elements,team_elements):
+        points_value = points.get_text(strip=True)
+        wins_value = points.get_text(strip=True)
+        ties_value = ties.get_text(strip=True)
+        losses_value = losses.get_text(strip=True)
+        last_5_value = last_5.get_text(strip=True)
+        team_value = team.get_text(strip=True)
+        cursor.execute('''UPDATE teamStats
+                           SET points = ?,
+                               matches_won = ?,
+                               matches_tied = ?,
+                               matches_lost = ?,
+                               last_5 =?
+                               WHERE team_name = ?
+                               ''',(points_value,wins_value,ties_value,losses_value,last_5_value,team_value))
+
+
 def statsPerTeam():
     for team, xg, goals, players, age, yellow, red, pens_made, progressive_carries in zip(
             team_elements, xg_elements, goals_elements, players_used_elements,
@@ -130,6 +155,7 @@ def statsPerTeam():
 
         if "vs" not in team_value and team_value != "Squad":
             #Convert here to avoid errors (example cant convert nothing to a float)
+
             xg_value = float(xg.get_text(strip=True))
             goals_value = int(goals.get_text(strip=True))
             age_value = float(age.get_text(strip=True))
@@ -137,6 +163,7 @@ def statsPerTeam():
             red_value = int(red.get_text(strip=True))
             pens_made_value = int(pens_made.get_text(strip=True))
             progressive_carries_value = int(progressive_carries.get_text(strip=True))
+
             cursor.execute('''
                 UPDATE teamStats
                 SET xg_value = ?,
@@ -240,6 +267,7 @@ def TeamConstantInfo():
 
 
 create_team_columns_insert_time()
+standardStats()
 statsPerTeam()
 statsAgainstTeam()
 TeamConstantInfo()
