@@ -1,8 +1,4 @@
-database code copy
-Joe McIntyre
-​
-Joe McIntyre
-​
+
 import datetime
 import requests
 from bs4 import BeautifulSoup
