@@ -1,4 +1,3 @@
-
 import datetime
 import requests
 from bs4 import BeautifulSoup
@@ -20,6 +19,7 @@ games_elements = soup.find_all(attrs={"data-stat": "games"})
 start_element = soup.find_all(attrs={"data-stat": "games_starts"})
 minutes_elements = soup.find_all(attrs={"data-stat": "minutes"})
 ninety_mins = soup.find_all(attrs={"data-stat": "minutes_90s"})
+
 
 # G+A
 goals_elements = soup.find_all(attrs={"data-stat": "goals"})
@@ -49,27 +49,23 @@ assistsp90_elements = soup.find_all(attrs={"data-stat": "assists_per90"})
 goalsassistsp90_elements = soup.find_all(attrs={"data-stat": "goals_assists_per90"})
 non_pen_goalsp90_elements = soup.find_all(attrs={"data-stat": "goals_pens_per90"})
 
-
-#Standard stats
+# Standard stats
 
 points_elements = soup.find_all(attrs={"data-stat": "points"})
 wins_elements = soup.find_all(attrs={"data-stat": "wins"})
 ties_elements = soup.find_all(attrs={"data-stat": "ties"})
 losses_elements = soup.find_all(attrs={"data-stat": "losses"})
 last_5_elements = soup.find_all(attrs={"data-stat": "last_5"})
-
-
+games_elements = soup.find_all(attrs={"data-stat":"games"})
+gd_elements = soup.find_all(attrs={"data-stat":"goal_diff"})
 ###
 
+#Create db and create table, adding the team which is our primary key
 connection = sqlite3.connect('stats.db')
 cursor = connection.cursor()
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS teamStats (
-        id INTEGER PRIMARY KEY,
-        team_name TEXT,
-        xg_value REAL,
-        goals_scored INTEGER
-
+        team_name TEXT PRIMARY KEY
     )
 ''')
 
@@ -78,14 +74,34 @@ cursor.execute("PRAGMA table_info(teamStats)")
 columns = cursor.fetchall()
 column_names = [col[1] for col in columns]
 # Create a list of columns that need to be added
-ColumnsToBeAdded = ['points','wins','ties','losses','last_5','xg_conceded', 'goals_conceded', 'average_age', 'yellow_cards','red_cards','pens_made',
-                    'progressive_carries','team_abbreviation','colour_code']
-TypeOfData = [' INTEGER',' INTEGER',' INTEGER',' INTEGER',' TEXT', ' REAL', ' INTEGER', ' REAL', ' INTEGER', 'INTEGER','INTEGER','INTEGER','TEXT','TEXT']
 
-for column, dataType in zip(ColumnsToBeAdded, TypeOfData):
+columns_and_types = [
+
+    ('goals_scored', 'INTEGER'),
+    ('xg_value', 'INTEGER'),
+    ('games', 'INTEGER'),
+    ('wins', 'INTEGER'),
+    ('ties', 'INTEGER'),
+    ('losses', 'TEXT'),
+    ('points', 'REAL'),
+    ('last_5', 'INTEGER'),
+    ('xg_conceded', 'INTEGER'),
+    ('goal_difference', 'REAL'),
+    ('goals_conceded', 'INTEGER'),
+    ('average_age', 'INTEGER'),
+    ('yellow_cards', 'INTEGER'),
+    ('red_cards', 'INTEGER'),
+    ('pens_made', 'INTEGER'),
+    ('progressive_carries', 'TEXT'),
+    ('team_abbreviation', 'TEXT'),
+    ('colour_code', 'TEXT')
+]
+
+
+for column, data_type in columns_and_types:
     if column not in column_names:
         # Create a query variable as referencing py variables
-        query = "ALTER TABLE teamStats ADD COLUMN " + column  + " " + dataType
+        query = "ALTER TABLE teamStats ADD COLUMN " + column + " " + data_type
         cursor.execute(query)
         connection.commit()
 
@@ -100,16 +116,11 @@ if 'date_and_time' not in column_names:
 
 cursor.execute('DELETE FROM teamStats')
 
-
-
 # Get the current date and time
 current_datetime = datetime.now()
 
 # Format the date and time in UK format
 date_and_time = current_datetime.strftime("%d/%m/%Y %H:%M:%S")
-
-
-
 
 
 # Filtering process to get the stats FOR teams -----------
@@ -122,37 +133,40 @@ def create_team_columns_insert_time():
         if team_text == "Squad":
             continue
         else:
-            cursor.execute('INSERT INTO teamStats (team_name,date_and_time) VALUES (?,?)', (team_text,date_and_time))
+            cursor.execute('INSERT INTO teamStats (team_name,date_and_time) VALUES (?,?)', (team_text, date_and_time))
         row += 1
         if row == 20:
             break
 
 
 def standardStats():
-  for points,wins,ties,losses,last_5,team in zip(points_elements,wins_elements,ties_elements,losses_elements,last_5_elements,team_elements):
-    team_text = team.get_text(strip=True)
-    points_text = points.get_text(strip=True)
-    wins_text = wins.get_text(strip=True)
-    ties_text = ties.get_text(strip=True)
-    losses_text = losses.get_text(strip=True)
-    last_5_text = last_5.get_text(strip=True)
+    for points, wins, ties, losses, last_5,gd,games, team in zip(points_elements, wins_elements, ties_elements, losses_elements,
+                                                        last_5_elements,gd_elements,games_elements,team_elements):
+        team_text = team.get_text(strip=True)
+        points_text = points.get_text(strip=True)
+        wins_text = wins.get_text(strip=True)
+        ties_text = ties.get_text(strip=True)
+        losses_text = losses.get_text(strip=True)
+        last_5_text = last_5.get_text(strip=True)
+        gd_text = gd.get_text(strip=True)
+        game_text = games.get_text(strip=True)
 
-    row = 0
-    #Check if we aren't viewing the names of columns
-    if team_text != "Squad":
-      points_value = int(points_text)
-      wins_value = int(wins_text)
-      ties_value = int(ties_text)
-      losses_value = int(losses_text)
-      cursor.execute('''
+        row = 0
+        # Check if we aren't viewing the names of columns
+        if team_text != "Squad":
+            points_value = int(points_text)
+            wins_value = int(wins_text)
+            ties_value = int(ties_text)
+            losses_value = int(losses_text)
+            gd_value = int(gd_text)
+            game_value = int(game_text)
+            cursor.execute('''
       UPDATE teamStats
-      SET points = ?, wins = ?, ties = ?, losses = ?, last_5 = ?
-      WHERE team_name = ?''',(points_value,wins_value,ties_value,losses_value,last_5_text,team_text))
-      row += 1
-    else:
-      continue
- 
-
+      SET points = ?, wins = ?, ties = ?, losses = ?, last_5 = ?, goal_difference = ?, games = ?
+      WHERE team_name = ?''', (points_value, wins_value, ties_value, losses_value, last_5_text, gd_value,game_value,team_text))
+            row += 1
+        else:
+            continue
 
 
 def statsPerTeam():
@@ -163,9 +177,8 @@ def statsPerTeam():
     ):
         team_value = team.get_text(strip=True)
 
-
         if "vs" not in team_value and team_value != "Squad":
-            #Convert here to avoid errors (example cant convert nothing to a float)
+            # Convert here to avoid errors (example cant convert nothing to a float)
             xg_value = float(xg.get_text(strip=True))
             goals_value = int(goals.get_text(strip=True))
             age_value = float(age.get_text(strip=True))
@@ -200,7 +213,7 @@ def statsAgainstTeam():
             if team_text != "Squad" and "vs" in team_text:
                 xg_text = xg_conceded.get_text(strip=True)
                 goals_text = goals_conceded.get_text(strip=True)
-                #Splitting team text, as we need to insert it into original team row
+                # Splitting team text, as we need to insert it into original team row
                 team_name = team_text.split('vs ')[1]  # Extracts the opponent's name after 'vs '
                 xg_value = float(xg_text)
                 goals_count = int(goals_text)
@@ -274,17 +287,11 @@ def TeamConstantInfo():
         connection.commit()
 
 
-
 create_team_columns_insert_time()
 standardStats()
 statsPerTeam()
 statsAgainstTeam()
 TeamConstantInfo()
-
-
-
-
-
 
 cursor.execute('SELECT * FROM teamStats')
 data = cursor.fetchall()
