@@ -60,7 +60,7 @@ games_elements = soup.find_all(attrs={"data-stat":"games"})
 gd_elements = soup.find_all(attrs={"data-stat":"goal_diff"})
 ###
 
-#Create db and create table, adding the team which is our primary key
+#Create db and create stats_table, adding the team which is our primary key
 connection = sqlite3.connect('stats.db')
 cursor = connection.cursor()
 cursor.execute('''
@@ -70,12 +70,8 @@ cursor.execute('''
 ''')
 
 # Adding the rest of the columns
-cursor.execute("PRAGMA table_info(teamStats)")
-columns = cursor.fetchall()
-column_names = [col[1] for col in columns]
-# Create a list of columns that need to be added
 
-columns_and_types = [
+columns_and_types_stats = [
 
     ('goals_scored', 'INTEGER'),
     ('xg_value', 'INTEGER'),
@@ -92,48 +88,91 @@ columns_and_types = [
     ('yellow_cards', 'INTEGER'),
     ('red_cards', 'INTEGER'),
     ('pens_made', 'INTEGER'),
-    ('progressive_carries', 'TEXT'),
-    ('team_abbreviation', 'TEXT'),
-    ('colour_code', 'TEXT')
+    ('progressive_carries', 'TEXT')
 ]
 
+cursor.execute("PRAGMA table_info(teamStats)")
+columns_stats = cursor.fetchall()
+column_names_stats = [col[1] for col in columns_stats]
+# Create a list of columns that need to be added
 
-for column, data_type in columns_and_types:
-    if column not in column_names:
+
+for column, data_type in columns_and_types_stats:
+    if column not in column_names_stats:
         # Create a query variable as referencing py variables
         query = "ALTER TABLE teamStats ADD COLUMN " + column + " " + data_type
         cursor.execute(query)
         connection.commit()
 
-# Add the time
 
-if 'date_and_time' not in column_names:
-    cursor.execute('''
-    ALTER TABLE teamStats
-    ADD COLUMN date_and_time TEXT
-    ''')
-    connection.commit()
+#Create a team information table
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS teamInfo (
+        team_name TEXT PRIMARY KEY
+    )
+''')
+
+columns_and_types_info = [
+    ('team_abbreviation','TEXT'),
+    ('colour_code','TEXT')
+]
+
+cursor.execute("PRAGMA table_info(teamStats)")
+columns_info = cursor.fetchall()
+column_names_info = [col[1] for col in columns_info]
+
+# Create a list of columns that need to be added
+for column, data_type in columns_and_types_info:
+    if column not in column_names_info:
+        # Check if the column already exists before adding it
+        cursor.execute("PRAGMA table_info(teamInfo)")
+        existing_columns = [col[1] for col in cursor.fetchall()]
+        if column not in existing_columns:
+            # Create a query variable as referencing py variables
+            query = "ALTER TABLE teamInfo ADD COLUMN " + column + " " + data_type
+            cursor.execute(query)
+            connection.commit()
+
+
+
 
 cursor.execute('DELETE FROM teamStats')
 
-# Get the current date and time
-current_datetime = datetime.now()
 
-# Format the date and time in UK format
-date_and_time = current_datetime.strftime("%d/%m/%Y %H:%M:%S")
+def date_and_time():
+    # Create a date and time table, date and time columns
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS date_and_time (
+            date TEXT PRIMARY KEY,
+            time TEXT
+        )
+    ''')
+
+    # Get the current date and time
+    current_datetime = datetime.now()
+
+    # Format the date and time in UK format
+    formatted_date = current_datetime.strftime("%d/%m/%Y")
+    formatted_time = current_datetime.strftime("%H:%M:%S")
+
+    # Insert date and time
+    cursor.execute("INSERT INTO date_and_time (date, time) VALUES (?, ?)", (formatted_date, formatted_time))
+    connection.commit()
+
 
 
 # Filtering process to get the stats FOR teams -----------
 # Create a variable to ensure there are only 20 teams
 
-def create_team_columns_insert_time():
+def create_team_column():
     row = 0
     for team in team_elements:
         team_text = team.get_text(strip=True)
         if team_text == "Squad":
             continue
         else:
-            cursor.execute('INSERT INTO teamStats (team_name,date_and_time) VALUES (?,?)', (team_text, date_and_time))
+            cursor.execute('INSERT INTO teamStats (team_name) VALUES (?)', (team_text,))
+            cursor.execute('INSERT INTO teamInfo (team_name) VALUES (?)', (team_text,))
         row += 1
         if row == 20:
             break
@@ -281,13 +320,14 @@ def TeamConstantInfo():
     for team, abbreviation in team_abbreviations.items():
         hex_code = team_colours_hex.get(team, '')  # Get hex code for the team (if available)
         cursor.execute(
-            'UPDATE teamStats SET team_abbreviation = ?, colour_code = ? WHERE team_name = ?',
+            'UPDATE teamInfo SET team_abbreviation = ?, colour_code = ? WHERE team_name = ?',
             (abbreviation, hex_code, team)
         )
         connection.commit()
 
 
-create_team_columns_insert_time()
+create_team_column()
+date_and_time()
 standardStats()
 statsPerTeam()
 statsAgainstTeam()
