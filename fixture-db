@@ -1,0 +1,120 @@
+import requests
+from bs4 import BeautifulSoup
+import sqlite3
+
+
+pageToScrape = requests.get('https://fbref.com/en/comps/9/schedule/Premier-League-Scores-and-Fixtures')
+soup = BeautifulSoup(pageToScrape.text,"html.parser")
+
+
+#Create db and create stats_table, adding the team which is our primary key
+connection = sqlite3.connect('fixtures.db')
+cursor = connection.cursor()
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS fixtures (
+        fixture TEXT PRIMARY KEY
+    )
+''')
+
+def delete_data():
+    try:
+        cursor.execute("DELETE FROM fixtures")
+        connection.commit()
+        print("All data deleted from the 'fixtures' table.")
+    except sqlite3.Error as e:
+        print(f"Error deleting data: {e}")
+
+# Call the delete_data function to delete all data
+delete_data()
+
+
+
+
+
+
+
+def create_rest_of_columns():
+    columns_to_be_added = [
+        ("gameweek", "INTEGER"),
+        ("date", "TEXT"),
+        ("home_team", "TEXT"),
+        ("away_team","TEXT"),
+        ("home_xg", "REAL"),
+        ("score", "REAL"),
+        ("away_xg", "TEXT"),
+        ("attendance", "INTEGER"),
+        ("referee", "TEXT")
+    ]
+    for stat, data_type in columns_to_be_added:
+        cursor.execute("PRAGMA table_info(fixtures)")
+        existing_columns = [col[1] for col in cursor.fetchall()]
+        if stat not in existing_columns:
+            query = "ALTER TABLE fixtures ADD COLUMN " + stat + " " + data_type
+            cursor.execute(query)
+            connection.commit()
+        else:
+            print('Column ' + stat + ' already exists in the fixtures table.')
+
+
+def get_fixtures():
+    home_team_elements = soup.find_all(attrs={"data-stat": "home_team"})
+    away_team_elements = soup.find_all(attrs={"data-stat": "away_team"})
+    date_elements = soup.find_all(attrs={"data-stat": "date"})
+
+    games_inserted = 0  # Initialize games inserted counter
+
+    for home, away, date in zip(home_team_elements, away_team_elements, date_elements):
+        home_text = home.get_text(strip=True)
+        away_text = away.get_text(strip=True)
+        date_text = date.get_text(strip=True)
+
+        if home_text and away_text and home_text != "Away" and away_text != "Away":
+            fixture = home_text + " vs " + away_text
+            print(fixture)
+
+            # Insert data directly without try-except block
+            cursor.execute('''INSERT INTO fixtures
+               (fixture, home_team, away_team, date)
+               VALUES (?,?,?,?)
+            ''', (fixture, home_text, away_text, date_text))
+            connection.commit()
+
+            games_inserted += 1  # Increment games inserted counter
+
+            if games_inserted >= 380:
+                print("Reached the limit of 380 games. Stopping further insertions.")
+                break
+
+
+
+def insert_stat(identifier):
+    stat_elements = soup.find_all(attrs={"data-stat": identifier})
+    home_elements = soup.find_all(attrs={"data-stat":"home_team"})
+    away_elements = soup.find_all(attrs={"data-stat": "away_team"})
+    for stat, home, away in zip(stat_elements, home_elements, away_elements):
+        stat_value = stat.get_text(strip=True)
+        home_value = home.get_text(strip=True)
+        away_value = away.get_text(strip=True)
+        fixture = home_value + " vs " + away_value
+        try:
+            print(identifier, stat_value)
+            # Use a parameterized query to avoid SQL injection
+            query = f"UPDATE fixtures SET {identifier} = ? WHERE fixture = ?"
+            cursor.execute(query, (stat_value, fixture))
+            connection.commit()
+        except sqlite3.IntegrityError as e:
+            print(f"Error updating {identifier}: {e}")
+
+
+
+def insertion_loop():
+    statsToBeAdded = ["gameweek","home_xg","away_xg","score","attendance","referee"]
+    for stat in statsToBeAdded:
+        insert_stat(stat)
+
+
+
+delete_data()
+create_rest_of_columns()
+get_fixtures()
+insertion_loop()
