@@ -386,7 +386,58 @@ for table_name, identifiers_and_types in tables_and_identifiers:
         statsAgainst(table_name, identifiers_and_types)
 
 
+def team_constant_info():
+    # Create columns if they don't exist
+    columns_to_be_added = ['abbreviation', 'colour_code', 'latitude', 'longitude']
 
+    for column_name in columns_to_be_added:
+        cursor.execute(f"PRAGMA table_info(team_info)")
+        existing_columns = [column[1] for column in cursor.fetchall()]
+
+        # If the column doesn't exist, add it
+        if column_name not in existing_columns:
+            if column_name != "latitude" and column_name != "longitude":
+                data_type = "TEXT"
+            else:
+                data_type = "REAL"
+            cursor.execute(f"ALTER TABLE team_info ADD COLUMN {column_name} {data_type}")
+
+    # List of Premier League team information with separated coordinates
+    teams_info = [
+        ("Arsenal", "ARS", "#EF0107", 51.5550, -0.1084),
+        ("Manchester Utd", "MUN", "#DA020E", 53.4631, -2.2913),
+        ("Liverpool", "LIV", "#C8102E", 53.4308, -2.9608),
+        ('Aston Villa','AVL','#95BFA3',52.5091,-1.8845),
+        ("Chelsea", "CHE", "#034694", 51.4816, -0.1919),
+        ("Manchester City", "MCI", "#6CADDF", 53.4830, -2.2004),
+        ("Tottenham", "TOT", "#132257", 51.6043, -0.0660),
+        ("West Ham", "WHU", "#7A263A", 51.5387, -0.0166),
+        ("Brighton", "BHA", "#0057B8", 50.8610, -0.0834),
+        ("Newcastle Utd", "NEW", "#241F20", 54.9755, -1.6215),
+        ("Wolves", "WOL", "#FDB913", 52.5900, -2.1306),
+        ("Bournemouth", "BOU", "#D31145", 50.7353, -1.8383),
+        ("Fulham", "FUL", "#000000", 51.4750, -0.2219),
+        ("Crystal Palace", "CRY", "#1B458F", 51.3983, -0.0857),
+        ("Nott'ham Forest", "NOT", "#DA020E", 52.9394, -1.1332),
+        ("Brentford", "BRE", "#F7EB09", 51.4881, -0.3028),
+        ("Everton", "EVE", "#003399", 53.4388, -2.9664),
+        ("Luton Town", "LUT", "#FFD100", 51.8841, -0.4314),
+        ("Burnley", "BUR", "#6C1D45", 53.7890, -2.2300),
+        ("Sheffield Utd", "SHU", "#EE2737", 53.3704, -1.4701)
+    ]
+
+    # Print the information for all teams with separated coordinates
+    for team_info in teams_info:
+        team_name, abbreviation, colour_code, latitude, longitude = team_info
+        cursor.execute('''
+                UPDATE team_info
+                SET abbreviation = ?, colour_code = ?, latitude = ?, longitude = ?
+                WHERE team_name = ?
+            ''', (abbreviation, colour_code, latitude, longitude, team_name))
+
+    connection.commit()
+
+team_constant_info()
 
 cursor.close()
 connection.close()
