@@ -1,7 +1,9 @@
-import datetime
+from datetime import datetime as datetime_module
 import requests
 from bs4 import BeautifulSoup
 import sqlite3
+import os
+import shutil
 
 pageToScrape = requests.get('https://fbref.com/en/comps/9/Premier-League-Stats')
 soup = BeautifulSoup(pageToScrape.text, "html.parser")
@@ -437,7 +439,41 @@ def team_constant_info():
 
     connection.commit()
 
-team_constant_info()
 
+def date_and_time():
+    cursor.execute("CREATE TABLE IF NOT EXISTS date_and_time (date TEXT PRIMARY KEY,time TEXT)")
+    current_date = datetime_module.now().strftime("%Y-%m-%d")
+    current_time = datetime_module.now().strftime("%H:%M")
+    cursor.execute("UPDATE date_and_time SET date = ?,time =?",(current_date,current_time))
+    connection.commit()
+
+
+#Copy the db to other locations if needed
+def copy_file():
+    current_directory = os.getcwd()
+    source_file_path = os.path.join(current_directory,"stats.db")
+    path_to_copy1= r"#path/to/your/file"
+    path_to_copy2 = r"path/to/your/second/file"
+    try:
+        # Check if the source file exists
+        if os.path.exists(source_file_path):
+            destination_file_path1 = os.path.join(path_to_copy1, "stats.db")
+            shutil.copy2(source_file_path, destination_file_path1)
+            destination_file_path2 = os.path.join(path_to_copy2,"stats.db")
+            shutil.copy2(source_file_path,destination_file_path2)
+            print(f"File copied successfully from {source_file_path} to {destination_file_path1}")
+            print(f"File copied successfully from {source_file_path} to {destination_file_path2}")
+        else:
+            print("Source file not found.")
+    except PermissionError:
+        print("Permission error. Make sure you have the necessary permissions.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+
+
+team_constant_info()
+date_and_time()
+#copy_file()
 cursor.close()
 connection.close()
