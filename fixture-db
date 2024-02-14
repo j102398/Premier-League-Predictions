@@ -16,16 +16,16 @@ cursor.execute('''
     )
 ''')
 
-def delete_data():
+def delete_data(table):
     try:
-        cursor.execute("DELETE FROM fixtures")
+        cursor.execute(f"DELETE FROM {table}")
         connection.commit()
-        print("All data deleted from the 'fixtures' table.")
+        print(f"All data deleted from the {table} table.")
     except sqlite3.Error as e:
         print(f"Error deleting data: {e}")
 
 # Call the delete_data function to delete all data
-delete_data()
+
 
 
 
@@ -113,8 +113,92 @@ def insertion_loop():
         insert_stat(stat)
 
 
+def create_home_away_goals_table():
+    # Define the SQL query to create the table if it doesn't exist
+    query = "CREATE TABLE IF NOT EXISTS home_away_goals (team TEXT PRIMARY KEY, home_goals INTEGER, away_goals INTEGER,total_goals INTEGER)"
 
-delete_data()
+    # Execute the SQL query
+    cursor.execute(query)
+
+    # List of football teams
+    team_list = [
+        "Liverpool", "Manchester City", "Arsenal", "Aston Villa", "Tottenham",
+        "West Ham", "Manchester Utd", "Brighton", "Chelsea", "Newcastle Utd",
+        "Wolves", "Bournemouth", "Fulham", "Brentford", "Crystal Palace",
+        "Nott'ham Forest", "Everton", "Luton Town", "Burnley", "Sheffield Utd"
+    ]
+
+    # Loop through each team and insert them into the table with initial values for home and away goals
+    for team in team_list:
+        # Define the SQL query to insert team's data into the table
+        query = "INSERT INTO home_away_goals (team, home_goals, away_goals,total_goals) VALUES (?, ?, ?,?)"
+
+        # Print the SQL query (for debugging purposes)
+        print(query)
+
+        # Execute the SQL query, inserting the team's data into the table with initial values for home and away goals (0, 0)
+        cursor.execute(query, (team, 0, 0,0))
+
+
+def insert_into_home_away_goals_table():
+    team_list = [
+        "Liverpool", "Manchester City", "Arsenal", "Aston Villa", "Tottenham",
+        "West Ham", "Manchester Utd", "Brighton", "Chelsea", "Newcastle Utd",
+        "Wolves", "Bournemouth", "Fulham", "Brentford", "Crystal Palace",
+        "Nott'ham Forest", "Everton", "Luton Town", "Burnley", "Sheffield Utd"
+    ]
+
+
+
+
+    #home goal loop
+    for team in team_list:
+        cursor.execute('SELECT score FROM fixtures WHERE home_team = ?',(team,))
+        scores = cursor.fetchall()
+        for score in scores:
+                #Convert the tuple to a string
+                score_string = score[0]
+                if score_string:
+
+                    home_goals = score_string[0]
+                    cursor.execute(f"UPDATE home_away_goals SET home_goals = home_goals + {home_goals} WHERE team = ?", (team,))
+
+    # Away team loop
+    for team in team_list:
+        cursor.execute('SELECT score FROM fixtures WHERE away_team = ?', (team,))
+        scores = cursor.fetchall()
+        for score in scores:
+            # Convert the tuple to a string
+            score_string = score[0]
+            if score_string:
+                away_goals = score_string[2]
+                cursor.execute(f"UPDATE home_away_goals SET away_goals = away_goals + {away_goals} WHERE team = ?",
+                               (team,))
+
+    #Add up total goals
+    cursor.execute('SELECT * FROM home_away_goals')
+    info = cursor.fetchall()
+    for team,home_goals,away_goals,total_goals in info:
+        total = home_goals + away_goals
+        cursor.execute(f'UPDATE home_away_goals SET total_goals = {total} WHERE team = ?',(team,))
+
+    connection.commit()
+
+
+
+
+
+
+
+
+
+
+
+delete_data('fixtures')
 create_rest_of_columns()
 get_fixtures()
 insertion_loop()
+
+delete_data('home_away_goals')
+create_home_away_goals_table()
+insert_into_home_away_goals_table()
