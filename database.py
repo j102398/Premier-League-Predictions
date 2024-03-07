@@ -448,6 +448,8 @@ def date_and_time():
     connection.commit()
 
 
+
+
 #Copy the db to other locations if needed
 def copy_file():
     current_directory = os.getcwd()
@@ -496,9 +498,12 @@ def convert_last_5_to_points():
     # Commit the changes to the database
     connection.commit()
 
+
+convert_last_5_to_points()
 team_constant_info()
 date_and_time()
 #copy_file()
-convert_last_5_to_points()
 cursor.close()
 connection.close()
+
+
