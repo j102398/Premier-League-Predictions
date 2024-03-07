@@ -470,10 +470,35 @@ def copy_file():
     except Exception as e:
         print(f"An error occurred: {e}")
 
+def convert_last_5_to_points():
+    cursor.execute("PRAGMA table_info(standard_for)")
+    columns = [column[1] for column in cursor.fetchall()]
 
+    if 'last_5_points' not in columns:
+        cursor.execute("ALTER TABLE standard_for ADD COLUMN last_5_points INTEGER")
+
+    cursor.execute('SELECT team_name, last_5 FROM standard_for')
+    teams_data = cursor.fetchall()
+
+    for team, matches in teams_data:
+        last_5_points = 0
+        for match in matches:
+            if match == "W":
+                last_5_points += 3
+            elif match == "D":
+                last_5_points += 1
+            else:
+                continue
+
+        # Update the last_5_points column for the current team
+        cursor.execute('UPDATE standard_for SET last_5_points = ? WHERE team_name = ?', (last_5_points, team))
+
+    # Commit the changes to the database
+    connection.commit()
 
 team_constant_info()
 date_and_time()
 #copy_file()
+convert_last_5_to_points()
 cursor.close()
 connection.close()
