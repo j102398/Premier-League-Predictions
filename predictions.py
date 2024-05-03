@@ -1,7 +1,8 @@
 import sqlite3
 import os
 #Firstly name the file
-
+from flask import Flask, render_template
+app = Flask(__name__)
 
 
 
@@ -18,10 +19,9 @@ stats_cursor = stats_connection.cursor()
 
 
 #Define the gameweek, as it will only predict the relevant gameweeks fixtures. will also store the file with the gameweek
-gameweek = 28
-
+gameweek = 36
 def name_file():
-    db_folder = "C:\\path\\to\\your\\desired\\folder"
+    db_folder = 'C:\\Users\\joe\\PycharmProjects\\predictions\\predictions_archive'
     # Check if the folder exists
     if not os.path.exists(db_folder):
         try:
@@ -67,8 +67,9 @@ def get_last_fixture_results(previous_home,previous_away):
 
 def get_team_stats(team):
     #Obtain points,points from last 5, goal_difference,progressive_carries,progressive_passes,xg
-    stats_cursor.execute(f'SELECT points, last_5_points, goal_diff, progressive_carries, progressive_passes, xg FROM standard_for WHERE team_name = "{team}"')
+    stats_cursor.execute(f'SELECT points, last_5_points, goal_diff, progressive_carries, progressive_passes, xg,games FROM standard_for WHERE team_name = "{team}"')
     data = stats_cursor.fetchall()
+
 
     #Sort into individual stats
     points = data[0][0]
@@ -77,7 +78,9 @@ def get_team_stats(team):
     progressive_carries = data[0][3]
     progressive_passes = data[0][4]
     xg = data[0][5]
-    return points,last_5_points,goal_diff,progressive_carries,progressive_passes,xg
+    games = data[0][6]
+
+    return points,last_5_points,goal_diff,progressive_carries,progressive_passes,xg,games
 
 def clear_statistics_table():
     prediction_cursor.execute("DELETE FROM statistics")
@@ -106,7 +109,9 @@ def create_statistics_table():
                 away_goal_diff INTEGER,
                 away_progressive_carries INTEGER,
                 away_progressive_passes INTEGER,
-                away_xg REAL
+                away_xg REAL,
+                home_games_played INTEGER,
+                away_games_played INTEGER
             )
         ''')
 
@@ -126,11 +131,11 @@ def insert_data(gameweek):
         previous_home_xg, previous_score, previous_away_xg = get_last_fixture_results(away_team, home_team)
 
         # Get home stats
-        home_points, home_last_5_points, home_goal_diff, home_progressive_carries, home_progressive_passes, home_xg = get_team_stats(
+        home_points, home_last_5_points, home_goal_diff, home_progressive_carries, home_progressive_passes, home_xg,home_games = get_team_stats(
             home_team)
 
         # Get away stats
-        away_points, away_last_5_points, away_goal_diff, away_progressive_carries, away_progressive_passes, away_xg = get_team_stats(
+        away_points, away_last_5_points, away_goal_diff, away_progressive_carries, away_progressive_passes, away_xg,away_games = get_team_stats(
             away_team)
 
         # Construct the query with parameterized queries
@@ -139,8 +144,8 @@ def insert_data(gameweek):
                                      home_points, home_last_5_points, home_goal_diff, home_progressive_carries,
                                      home_progressive_passes, home_xg, away_previous_xg, away_previous_home_xg,
                                      away_points, away_last_5_points, away_goal_diff, away_progressive_carries,
-                                     away_progressive_passes, away_xg)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                     away_progressive_passes, away_xg,home_games_played,away_games_played)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?)
         '''
 
 
@@ -151,7 +156,7 @@ def insert_data(gameweek):
                                           home_progressive_carries, home_progressive_passes, home_xg,
                                           previous_away_xg, previous_home_xg, away_points, away_last_5_points,
                                           away_goal_diff, away_progressive_carries, away_progressive_passes,
-                                          away_xg))
+                                          away_xg,home_games,away_games))
 
     # Commit the changes and close the database connection
     prediction_connection.commit()
@@ -276,66 +281,6 @@ def insert_comparisons():
 
 
 
-#Get the user to determine how much weight should be placed on different stats
-def determine_points_criteria():
-    #We are going to use a scoring criteria to predict the outcome of games.
-
-    previous_xg_multiplier = 3
-
-
-    score_difference_multiplier = 2
-
-
-    more_points_multiplier = 1
-
-
-    more_last_5_points_multiplier = 3
-
-    more_goal_diff_multiplier = 2
-
-    more_progressive_carries_multiplier = 0.01
-
-    more_progressive_passes_multiplier = 0.01
-
-    more_xg_multiplier = 2
-
-    return previous_xg_multiplier,score_difference_multiplier,more_points_multiplier,more_last_5_points_multiplier,more_goal_diff_multiplier,more_progressive_carries_multiplier,more_progressive_passes_multiplier,more_xg_multiplier
-
-def store_scoring_criteria():
-    scoring_criteria = determine_points_criteria()
-    query = f'''
-          INSERT INTO scoring_criteria (
-              previous_xg_multiplier,
-              score_difference_multiplier,
-              more_points_multiplier,
-              more_last_5_points_multiplier,
-              more_goal_diff_multiplier,
-              more_progressive_carries_multiplier,
-              more_progressive_passes_multiplier,
-              more_xg_multiplier
-          )
-          VALUES (
-              {scoring_criteria[0]},
-              {scoring_criteria[1]},
-              {scoring_criteria[2]},
-              {scoring_criteria[3]},
-              {scoring_criteria[4]},
-              {scoring_criteria[5]},
-              {scoring_criteria[6]},
-              {scoring_criteria[7]}
-          )
-      '''
-
-    # Execute the query
-    prediction_cursor.execute(query)
-
-    # Commit the changes to the database
-    prediction_connection.commit()
-    assign_points(scoring_criteria[0], scoring_criteria[1],
-                  scoring_criteria[2], scoring_criteria[3], scoring_criteria[4],
-                  scoring_criteria[5], scoring_criteria[6], scoring_criteria[7])
-
-
 def delete_from_prediction_table():
     prediction_cursor.execute('DELETE FROM predictions')
 def create_prediction_table():
@@ -354,56 +299,6 @@ def create_prediction_table():
     prediction_connection.commit()
 
 
-
-
-def assign_points(previous_xg_multiplier, score_difference_multiplier,
-                  more_points_multiplier, more_last_5_points_multiplier, more_goal_diff_multiplier,
-                  more_progressive_carries_multiplier, more_progressive_passes_multiplier, more_xg_multiplier):
-    # Get all the data from the comparisons table
-    prediction_cursor.execute('SELECT fixture, more_previous_xg, score, more_points, more_last_5_points, '
-                              'more_goal_diff, more_progressive_carries, more_progressive_passes, more_xg '
-                              'FROM comparisons')
-    data = prediction_cursor.fetchall()
-
-    for x in range(len(data)):
-        fixture = data[x][0]
-        more_previous_xg = float(data[x][1])  # Convert to float
-        score = int(data[x][2])  # Convert to integer
-        more_points = int(data[x][3])  # Convert to integer
-        more_last_5_points = int(data[x][4])  # Convert to integer
-        more_goal_diff = int(data[x][5])  # Convert to integer
-        more_progressive_carries = int(data[x][6])  # Convert to integer
-        more_progressive_passes = int(data[x][7])  # Convert to integer
-        more_xg = float(data[x][8])  # Convert to float
-
-        # Calculate points for each criterion
-        previous_xg_points = more_previous_xg * previous_xg_multiplier
-        score_points = score * score_difference_multiplier
-        points_points = more_points * more_points_multiplier
-        last_5_points_points = more_last_5_points * more_last_5_points_multiplier
-        goal_diff_points = more_goal_diff * more_goal_diff_multiplier
-        progressive_carries_points = more_progressive_carries * more_progressive_carries_multiplier
-        progressive_passes_points = more_progressive_passes * more_progressive_passes_multiplier
-        xg_points = more_xg * more_xg_multiplier
-
-        total_points = (previous_xg_points + score_points + points_points +
-                        last_5_points_points + goal_diff_points +
-                        progressive_carries_points + progressive_passes_points + xg_points)
-
-        # Here, you would typically have some logic to store or use these points, such as updating a database
-        # For example, you can insert these points into the predictions table
-        prediction_cursor.execute('''INSERT INTO predictions (fixture, previous_xg_points, score_points, 
-                                    points_points, last_5_points_points, goal_diff_points, 
-                                    progressive_carries_points, progressive_passes_points, xg_points,total_points) 
-                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,?)''',
-                                  (fixture, previous_xg_points, score_points, points_points,
-                                   last_5_points_points, goal_diff_points, progressive_carries_points,
-                                   progressive_passes_points, xg_points,total_points))
-
-
-
-    # Commit the transaction after all insertions
-    prediction_cursor.connection.commit()
 
 
 
@@ -439,13 +334,9 @@ def run_program():
     delete_from_prediction_table()
     create_prediction_table()
 
-    # Store scoring criteria (assuming it needs to be stored again, as per your original code)
-    store_scoring_criteria()
 
 
 # Execute the program
 run_program()
-
-
 
 
