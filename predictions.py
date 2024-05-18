@@ -59,7 +59,7 @@ def get_last_fixture_results(previous_home, previous_away):
 def get_team_stats(team):
     # Obtain points,points from last 5, goal_difference,progressive_carries,progressive_passes,xg
     stats_cursor.execute(
-        f'SELECT points, last_5_points, goal_diff, progressive_carries, progressive_passes, xg,games,possession,progressive_passes_received,goals FROM standard_for WHERE team_name = "{team}"')
+        f'SELECT points, last_5_points, goal_diff, progressive_carries, progressive_passes, xg,games,possession,progressive_passes_received,goals_for FROM standard_for WHERE team_name = "{team}"')
     data = stats_cursor.fetchall()
 
     # Sort into individual stats
