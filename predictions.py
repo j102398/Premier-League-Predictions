@@ -59,7 +59,7 @@ def get_last_fixture_results(previous_home, previous_away):
 def get_team_stats(team):
     # Obtain points,points from last 5, goal_difference,progressive_carries,progressive_passes,xg
     stats_cursor.execute(
-        f'SELECT points, last_5_points, goal_diff, progressive_carries, progressive_passes, xg,games,possession,progressive_passes_received,goals_for FROM standard_for WHERE team_name = "{team}"')
+        f'SELECT points, last_5_points, goal_diff, progressive_carries, progressive_passes, xg,games,possession,goals_for FROM standard_for WHERE team_name = "{team}"')
     data = stats_cursor.fetchall()
 
     # Sort into individual stats
@@ -71,10 +71,9 @@ def get_team_stats(team):
     xg = data[0][5]
     games = data[0][6]
     possession = data[0][7]
-    progressive_passes_received = data[0][8]
-    goals = data[0][9]
+    goals = data[0][8]
     # Get
-    return points, last_5_points, goal_diff, progressive_carries, progressive_passes, xg, games, possession, progressive_passes_received,goals
+    return points, last_5_points, goal_diff, progressive_carries, progressive_passes, xg, games, possession,goals
 
 
 def clear_statistics_table():
@@ -110,8 +109,6 @@ def create_statistics_table():
                 away_games_played INTEGER,
                 home_possession REAL,
                 away_possession REAL,
-                home_progressive_passes_received INTEGER,
-                away_progressive_passes_received INTEGER,
                 home_goals INTEGER,
                 away_goals INTEGER
             )
@@ -147,10 +144,9 @@ def insert_data(gameweek):
                 home_last_5_points, home_goal_diff, home_progressive_carries, home_progressive_passes,
                 home_xg, away_previous_xg, away_points, away_last_5_points, away_goal_diff,
                 away_progressive_carries, away_progressive_passes, away_xg, home_games_played,
-                away_games_played, home_possession, home_progressive_passes_received, away_possession,
-                away_progressive_passes_received,home_goals,away_goals
+                away_games_played, home_possession,  away_possession,home_goals,away_goals
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         '''
 
         # Execute the query with parameters
@@ -159,7 +155,7 @@ def insert_data(gameweek):
             home_last_5_points, home_goal_diff, home_progressive_carries, home_progressive_passes, home_xg,
             away_previous_xg, away_points, away_last_5_points, away_goal_diff, away_progressive_carries,
             away_progressive_passes, away_xg, home_games, away_games, home_possession,
-            home_progressive_passes_received, away_possession, away_progressive_passes_received,home_goals,away_goals
+             away_possession, home_goals,away_goals
         ))
 
     # Commit the changes and close the database connection
