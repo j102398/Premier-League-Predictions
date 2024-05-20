@@ -17,7 +17,7 @@ identifiers_and_types_standard = [
     ("games_starts", "INTEGER"),
     ("minutes", "INTEGER"),
     ("minutes_90s", "REAL"),
-    ("goals", "INTEGER"),
+    ("goals_for", "INTEGER"),
     ("assists", "INTEGER"),
     ("goals_assists", "INTEGER"),
     ("goals_pens", "INTEGER"),
