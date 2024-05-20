@@ -17,7 +17,7 @@ identifiers_and_types_standard = [
     ("games_starts", "INTEGER"),
     ("minutes", "INTEGER"),
     ("minutes_90s", "REAL"),
-    ("goals_for", "INTEGER"),
+    ("goals", "INTEGER"),
     ("assists", "INTEGER"),
     ("goals_assists", "INTEGER"),
     ("goals_pens", "INTEGER"),
@@ -40,7 +40,7 @@ identifiers_and_types_standard = [
     ("losses", "TEXT"),
     ("last_5", "INTEGER"),
     ("goal_diff", "REAL"),
-
+    ("xg_against","REAL")
 ]
 
 identifiers_and_types_goalkeeping = [
@@ -340,15 +340,13 @@ def create_rest_of_columns(identifiers_and_types, table):
 
 def statsFor(table_name, identifiers_and_types):
     for stats, data_type in identifiers_and_types:
-
         stat_elements = soup.find_all(attrs={"data-stat": stats})
         team_elements = soup.find_all(attrs={"data-stat": "team"})
 
         for stat_element, team_element in zip(stat_elements, team_elements):
             stat_value = stat_element.get_text(strip=True)
             team_value = team_element.get_text(strip=True)
-            if stat_value == "88":
-                print(stat_value,team_value)
+
             if team_value != "Squad" and "vs" not in team_value:
                 query = f"UPDATE {table_name} SET {stats} = ? WHERE team_name = ?"
                 cursor.execute(query, (stat_value, team_value))
@@ -451,15 +449,21 @@ def date_and_time():
 
 
 
+
+#Copy the db to other locations if needed
 def copy_file():
     current_directory = os.getcwd()
     source_file_path = os.path.join(current_directory,"stats.db")
-    path_to_copy2 = r"C:/Users/joe/PycharmProjects/predictions"
+    path_to_copy1= r"#path/to/your/file"
+    path_to_copy2 = r"path/to/your/second/file"
     try:
         # Check if the source file exists
         if os.path.exists(source_file_path):
+            destination_file_path1 = os.path.join(path_to_copy1, "stats.db")
+            shutil.copy2(source_file_path, destination_file_path1)
             destination_file_path2 = os.path.join(path_to_copy2,"stats.db")
             shutil.copy2(source_file_path,destination_file_path2)
+            print(f"File copied successfully from {source_file_path} to {destination_file_path1}")
             print(f"File copied successfully from {source_file_path} to {destination_file_path2}")
         else:
             print("Source file not found.")
@@ -468,18 +472,17 @@ def copy_file():
     except Exception as e:
         print(f"An error occurred: {e}")
 
-
 def convert_last_5_to_points():
+    cursor.execute("PRAGMA table_info(standard_for)")
+    columns = [column[1] for column in cursor.fetchall()]
+
+    if 'last_5_points' not in columns:
+        cursor.execute("ALTER TABLE standard_for ADD COLUMN last_5_points INTEGER")
+
+    cursor.execute('SELECT team_name, last_5 FROM standard_for')
+    teams_data = cursor.fetchall()
+
     try:
-
-        cursor.execute("PRAGMA table_info(standard_for)")
-        columns = [column[1] for column in cursor.fetchall()]
-
-        if 'last_5_points' not in columns:
-            cursor.execute("ALTER TABLE standard_for ADD COLUMN last_5_points INTEGER")
-
-        cursor.execute('SELECT team_name, last_5 FROM standard_for')
-        teams_data = cursor.fetchall()
 
         for team, matches in teams_data:
             last_5_points = 0
@@ -493,18 +496,16 @@ def convert_last_5_to_points():
 
             # Update the last_5_points column for the current team
             cursor.execute('UPDATE standard_for SET last_5_points = ? WHERE team_name = ?', (last_5_points, team))
+    except Exception:
+        print(f"An error occurred : {Exception}")
+    # Commit the changes to the database
+    connection.commit()
 
-        # Commit the changes to the database
-        connection.commit()
-    except Exception as error:
-        print(f"An error occured: {error}")
 
 convert_last_5_to_points()
 team_constant_info()
 date_and_time()
-copy_file()
+#copy_file()
 cursor.close()
 connection.close()
-
-
 
