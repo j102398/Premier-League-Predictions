@@ -10,7 +10,7 @@ stats_connection = sqlite3.connect('stats.db')
 stats_cursor = stats_connection.cursor()
 
 # Define the gameweek, as it will only predict the relevant gameweeks fixtures. will also store the file with the gameweek
-gameweek = 38
+gameweek = 39
 
 
 def name_file():
@@ -59,7 +59,7 @@ def get_last_fixture_results(previous_home, previous_away):
 def get_team_stats(team):
     # Obtain points,points from last 5, goal_difference,progressive_carries,progressive_passes,xg
     stats_cursor.execute(
-        f'SELECT points, last_5_points, goal_diff, progressive_carries, progressive_passes, xg,games,possession,goals_for FROM standard_for WHERE team_name = "{team}"')
+        f'SELECT points, last_5_points, goal_diff, progressive_carries, progressive_passes, xg,games,possession,goals_for,xg_against FROM standard_for WHERE team_name = "{team}"')
     data = stats_cursor.fetchall()
 
     # Sort into individual stats
@@ -72,8 +72,9 @@ def get_team_stats(team):
     games = data[0][6]
     possession = data[0][7]
     goals = data[0][8]
+    xg_against = data[0][9]
     # Get
-    return points, last_5_points, goal_diff, progressive_carries, progressive_passes, xg, games, possession,goals
+    return points, last_5_points, goal_diff, progressive_carries, progressive_passes, xg, games, possession,goals,xg_against
 
 
 def clear_statistics_table():
@@ -110,7 +111,9 @@ def create_statistics_table():
                 home_possession REAL,
                 away_possession REAL,
                 home_goals INTEGER,
-                away_goals INTEGER
+                away_goals INTEGER,
+                home_xg_against REAL,
+                away_xg_against REAL
             )
         ''')
 
@@ -130,11 +133,11 @@ def insert_data(gameweek):
         away_previous_xg, previous_score, home_previous_xg = get_last_fixture_results(away_team, home_team)
 
         # Get home stats
-        home_points, home_last_5_points, home_goal_diff, home_progressive_carries, home_progressive_passes, home_xg, home_games, home_possession, home_progressive_passes_received,home_goals = get_team_stats(
+        home_points, home_last_5_points, home_goal_diff, home_progressive_carries, home_progressive_passes, home_xg, home_games, home_possession, home_progressive_passes_received,home_goals,home_xg_against= get_team_stats(
             home_team)
 
         # Get away stats
-        away_points, away_last_5_points, away_goal_diff, away_progressive_carries, away_progressive_passes, away_xg, away_games, away_possession, away_progressive_passes_received,away_goals = get_team_stats(
+        away_points, away_last_5_points, away_goal_diff, away_progressive_carries, away_progressive_passes, away_xg, away_games, away_possession, away_progressive_passes_received,away_goals,away_xg_against = get_team_stats(
             away_team)
 
         # Construct the query with parameterized queries
@@ -144,9 +147,9 @@ def insert_data(gameweek):
                 home_last_5_points, home_goal_diff, home_progressive_carries, home_progressive_passes,
                 home_xg, away_previous_xg, away_points, away_last_5_points, away_goal_diff,
                 away_progressive_carries, away_progressive_passes, away_xg, home_games_played,
-                away_games_played, home_possession,  away_possession,home_goals,away_goals
+                away_games_played, home_possession,  away_possession,home_goals,away_goals,home_xg_against,away_xg_against
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?)
         '''
 
         # Execute the query with parameters
@@ -155,7 +158,7 @@ def insert_data(gameweek):
             home_last_5_points, home_goal_diff, home_progressive_carries, home_progressive_passes, home_xg,
             away_previous_xg, away_points, away_last_5_points, away_goal_diff, away_progressive_carries,
             away_progressive_passes, away_xg, home_games, away_games, home_possession,
-             away_possession, home_goals,away_goals
+             away_possession, home_goals,away_goals,home_xg_against,away_xg_against
         ))
 
     # Commit the changes and close the database connection
