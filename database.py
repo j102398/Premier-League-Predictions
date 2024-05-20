@@ -40,7 +40,8 @@ identifiers_and_types_standard = [
     ("losses", "TEXT"),
     ("last_5", "INTEGER"),
     ("goal_diff", "REAL"),
-    ("xg_against","REAL")
+    ("xg_against","REAL"),
+    ("goals_against","REAL")
 ]
 
 identifiers_and_types_goalkeeping = [
