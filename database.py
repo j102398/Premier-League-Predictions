@@ -39,7 +39,7 @@ identifiers_and_types_standard = [
     ("wins", "INTEGER", int),
     ("ties", "INTEGER", int),
     ("losses", "TEXT", str),
-    ("last_5", "INTEGER", int),
+    ("last_5", "TEXT", str),
     ("goal_diff", "REAL", float),
     ("xg_against","REAL", float),
     ("goals_against","REAL", float)
@@ -103,8 +103,20 @@ class Database:
                     pass
                 else:
                     try:
-                        self.cursor.execute(f'UPDATE {self.primary_table} SET {stat_name} = ? WHERE team = ?',(stat_value, team,))
-                        self.connection.commit()
+
+                        if stat_name.lower() == "last_5":#handle the last 5 differently, as we need to convert it from a string of characters to an integer value
+                            points_counter = 0
+                            for char in stat_value:
+                                if char == "W":
+                                    points_counter += 3
+                                if char == "D":
+                                    points_counter += 1
+
+                            self.cursor.execute(f'UPDATE {self.primary_table} SET last_5 = ? , last_5_points = ? WHERE team = ?',(stat_value,points_counter, team,))
+                            self.connection.commit()
+                        else:
+                            self.cursor.execute(f'UPDATE {self.primary_table} SET {stat_name} = ? WHERE team = ?',(stat_value, team,))
+                            self.connection.commit()
                     except:
                         pass
 
