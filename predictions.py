@@ -1,194 +1,205 @@
+#Import relevant libraries
 import sqlite3
-import os
+import requests
+from bs4 import BeautifulSoup
 
-# Connect to the fixture db
-fixture_connection = sqlite3.connect('fixtures.db')
-fixture_cursor = fixture_connection.cursor()
+previous_db_file_path = "path\\to\\file\\database.db" #conect to the database with the fixtures
 
-# Connect to the stats db
-stats_connection = sqlite3.connect('stats.db')
-stats_cursor = stats_connection.cursor()
-
-# Define the gameweek, as it will only predict the relevant gameweeks fixtures. will also store the file with the gameweek
-gameweek = 32
-
-
-def name_file():
-    db_folder = 'C:\\Users\\joe\\PycharmProjects\\predictions\\predictions_archive'
-    # Check if the folder exists
-    if not os.path.exists(db_folder):
-        try:
-            # Create the folder
-            os.makedirs(db_folder)
-            print("Folder '" + db_folder + "' created successfully.")
-        except Exception as e:
-            print("An error occurred while creating the folder: " + str(e))
+#Miscellaneous
+def factorial(number):
+    if number == 0:
+        return 1
     else:
-        print("Folder '" + db_folder + "' already exists.")
+        total = 1
+        for i in range(number, 0, -1):
+            total *= i
 
-    global db_name
-    db_name = os.path.join(db_folder, f"predictions_gw{gameweek}.db")
+        return total
 
+def ppd(lambda_value, x):  #  Where X ~ Po(λ),P(X=x)
+    ##Constants
+    e = 2.718281828459045
+    probability = (e ** (-lambda_value)) * ((lambda_value ** x) / factorial(x))
+    return probability
 
-name_file()
+class Database:
+    def __init__(self,db_name,previous_db_file_path,gameweek):
+        self.previous_connection = sqlite3.connect(previous_db_file_path)
+        self.previous_cursor = self.previous_connection.cursor()
+        #consider if the name contains .db in already
+        if ".db" in db_name:
+            self.connection = sqlite3.connect(db_name)
 
-# Connect to the predictions db
-prediction_connection = sqlite3.connect(db_name)
-prediction_cursor = prediction_connection.cursor()
+        else:
 
+            self.connection = sqlite3.connect(f"{db_name}.db")
+        self.cursor = self.connection.cursor()
+        self.gameweek = str(gameweek) #when retrieving data, the gameweek will be in string format
+        self.primary_table = f"gameweek_{self.gameweek}"
 
-def get_fixtures(gameweek):
-    fixture_cursor.execute(f'SELECT home_team,away_team FROM fixtures WHERE gameweek = {gameweek}')
-    fixture_list = fixture_cursor.fetchall()
-    return fixture_list
-
-
-def get_last_fixture_results(previous_home, previous_away):
-    fixture_cursor.execute('SELECT home_xg,score,away_xg FROM fixtures WHERE home_team = ? AND away_team = ?',
-                           (previous_home, previous_away))
-
-    data = fixture_cursor.fetchall()
-
-    # Sort the data into its variables
-    previous_home_xg = data[0][0]
-    score = data[0][1]
-    previous_away_xg = data[0][2]
-    return previous_home_xg, score, previous_away_xg
-
-
-def get_team_stats(team):
-    # Obtain points,points from last 5, goal_difference,progressive_carries,progressive_passes,xg
-    stats_cursor.execute(
-        f'SELECT points, last_5_points, goal_diff, progressive_carries, progressive_passes, xg,games,possession,goals_for,xg_against,goals_against FROM standard_for WHERE team_name = "{team}"')
-    data = stats_cursor.fetchall()
-
-    # Sort into individual stats
-    points = data[0][0]
-    last_5_points = data[0][1]
-    goal_diff = data[0][2]
-    progressive_carries = data[0][3]
-    progressive_passes = data[0][4]
-    xg = data[0][5]
-    games = data[0][6]
-    possession = data[0][7]
-    goals = data[0][8]
-    xg_against = data[0][9]
-    goals_against = data[0][10]
-    # Get
-    return points, last_5_points, goal_diff, progressive_carries, progressive_passes, xg, games, possession,goals,xg_against,goals_against
+    def create_table(self):
+        try:
+            self.cursor.execute(f'''
+                CREATE TABLE IF NOT EXISTS gameweek_{self.gameweek} (
+                    fixture TEXT PRIMARY KEY,
+                    gameweek INTEGER,
+                    home_team TEXT,
+                    away_team TEXT,
+                    home_previous_xg REAL,
+                    away_previous_xg REAL,
+                    home_team_home_goals INTEGER,
+                    away_team_away_goals INTEGER,
+                    home_team_home_goals_conceded INTEGER,
+                    away_team_away_goals_conceded INTEGER,
+                    home_team_home_xg REAL,
+                    away_team_away_xg REAL,
+                    home_team_home_conceded_xg REAL,
+                    away_team_away_conceded_xg REAL
+                )
+            ''')
+            self.connection.commit()
+        except Exception as error:
+            print(f'An error occured : {error}')
 
 
-def clear_statistics_table():
-    try:
-        prediction_cursor.execute("DELETE FROM statistics")
-        prediction_connection.commit()
-    except:
-        pass
+    def get_fixtures(self): #get the fixture, home team and away team from the specified gameweek
 
-def create_statistics_table():
-    # Execute SQL to create the prediction table if it doesn't exist
-    prediction_cursor.execute('''
-            CREATE TABLE IF NOT EXISTS statistics (
-                gameweek INTEGER,
-                home_team TEXT,
-                away_team TEXT,
-                previous_score TEXT,
-                home_previous_xg REAL,
-                home_points INTEGER,
-                home_last_5_points INTEGER,
-                home_goal_diff INTEGER,
-                home_progressive_carries INTEGER,
-                home_progressive_passes INTEGER,
-                home_xg REAL,
-                away_previous_xg REAL,
-                away_points INTEGER,
-                away_last_5_points INTEGER,
-                away_goal_diff INTEGER,
-                away_progressive_carries INTEGER,
-                away_progressive_passes INTEGER,
-                away_xg REAL,
-                home_games_played INTEGER,
-                away_games_played INTEGER,
-                home_possession REAL,
-                away_possession REAL,
-                home_goals INTEGER,
-                away_goals INTEGER,
-                home_xg_against REAL,
-                away_xg_against REAL,
-                home_goals_against INTEGER,
-                away_goals_against INTEGER,
-            )
-        ''')
+        try:
+            self.previous_cursor.execute('SELECT fixture,home_team,away_team FROM fixtures WHERE gameweek = ?',(self.gameweek,))
+            data = self.previous_cursor.fetchall()
+
+            #Loop through the data, inserting the fixtures into our new database
+            for fixture,home_team,away_team in data:
+                self.cursor.execute(f'INSERT INTO {self.primary_table} (fixture,home_team,away_team,gameweek) VALUES (?,?,?,?)',(fixture,home_team,away_team,self.gameweek))
+                self.connection.commit()
+
+        except: #if the fixtures have already been inserted
+            pass
+
+    def insert_data_simple(self): #insert the data that doesn't require manual manipulation
+        #we are retrieving previous xg from last game
+        self.cursor.execute(f'SELECT home_team,away_team FROM {self.primary_table}') #retrieve a list of home teams and away teams this gameweek
+        teams = self.cursor.fetchall()
+        for previous_away_team,previous_home_team in teams: #current home team is the previous away team etc.
+            home_team = previous_away_team
+            away_team = previous_home_team
+            self.previous_cursor.execute('SELECT home_xg,away_xg FROM fixtures WHERE home_team = ? AND away_team = ? AND gameweek < ?',(previous_home_team,previous_away_team,self.gameweek)) #include the gameweek clause for the purpose of back testing. only want to consider the available data at the time
+            away_previous_xg,home_previous_xg = self.previous_cursor.fetchone() #the previous xg of the CURRENT away team
 
 
-def insert_data(gameweek):
-    # Create a new database for all the predicted outcomes
+            #insert this data into the new database
+            self.cursor.execute(f'UPDATE {self.primary_table} SET home_previous_xg =?,away_previous_xg = ? WHERE home_team = ? AND away_team = ?',(float(home_previous_xg),float(away_previous_xg),home_team,away_team))
+            self.connection.commit()
 
-    # Get the list of fixtures
-    fixture_list = get_fixtures(gameweek)
-
-    # Create the predictions table if it doesn't exist
-    create_statistics_table()
-
-    # Create a for loop that splits the fixture into home team and away team
-    for home_team, away_team in fixture_list:
-        # Get the previous_home_xg, previous_score, previous_away_xg
-        away_previous_xg, previous_score, home_previous_xg = get_last_fixture_results(away_team, home_team)
-
-        # Get home stats
-        home_points, home_last_5_points, home_goal_diff, home_progressive_carries, home_progressive_passes, home_xg, home_games, home_possession, home_progressive_passes_received,home_goals,home_xg_against,\
-            home_goals_against= get_team_stats(
-            home_team)
-
-        # Get away stats
-        away_points, away_last_5_points, away_goal_diff, away_progressive_carries, away_progressive_passes, away_xg, away_games, away_possession, away_progressive_passes_received,away_goals,away_xg_against,\
-            away_goals_against= get_team_stats(
-            away_team)
-
-        # Construct the query with parameterized queries
-        query = '''
-            INSERT INTO statistics (
-                gameweek, home_team, away_team, previous_score, home_previous_xg, home_points,
-                home_last_5_points, home_goal_diff, home_progressive_carries, home_progressive_passes,
-                home_xg, away_previous_xg, away_points, away_last_5_points, away_goal_diff,
-                away_progressive_carries, away_progressive_passes, away_xg, home_games_played,
-                away_games_played, home_possession,  away_possession,home_goals,away_goals,home_xg_against,away_xg_against,
-                home_goals_against,away_goals_against
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?)
-        '''
-
-        # Execute the query with parameters
-        prediction_cursor.execute(query, (
-            gameweek, home_team, away_team, previous_score, home_previous_xg, home_points,
-            home_last_5_points, home_goal_diff, home_progressive_carries, home_progressive_passes, home_xg,
-            away_previous_xg, away_points, away_last_5_points, away_goal_diff, away_progressive_carries,
-            away_progressive_passes, away_xg, home_games, away_games, home_possession,
-             away_possession, home_goals,away_goals,home_xg_against,away_xg_against,
-            home_goals_against,away_goals_against
-        ))
-
-    # Commit the changes and close the database connection
-    prediction_connection.commit()
+    def insert_data_complex(self):
+        def sort_goals(score):
+            home_goals_str, away_goals_str = score.split("–")
+            return int(home_goals_str), int(away_goals_str)
 
 
 
+        #get the list of teams
+        self.cursor.execute(f'SELECT home_team,away_team FROM {self.primary_table}')  # retrieve a list of home teams and away teams this gameweek
+        teams = self.cursor.fetchall()
 
-def run_program():
-    try:
-        # Clear existing statistics table
-        clear_statistics_table()
+        home_team_dictionary = {} #create a dictionary to track the stats for each home team
+        away_team_dictionary = {} #create a dictionary to track the stats for each away team
+        for home_team, away_team in teams:
+            # sum up the xg of the home team when at home
+            self.previous_cursor.execute('SELECT home_xg,score,away_xg FROM fixtures WHERE home_team = ?', (home_team,))
+            home_stats = self.previous_cursor.fetchall()
+            self.previous_cursor.execute('SELECT away_xg,score,home_xg FROM fixtures WHERE away_team = ?', (away_team,))
+            away_stats = self.previous_cursor.fetchall()
+            #add the home and away teams to their respective sets
+            if home_team not in home_team_dictionary:
+                home_team_dictionary[home_team] = {'home_team_home_xg': 0, 'home_team_home_goals': 0, 'home_team_home_conceded_xg': 0, 'home_team_home_goals_conceded': 0}
 
-        # Create statistics table and insert data
-        create_statistics_table()
-        insert_data(gameweek)
+            if away_team not in away_team_dictionary:
+                away_team_dictionary[away_team] = {'away_team_away_xg': 0, 'away_team_away_goals': 0, 'away_team_away_conceded_xg': 0, 'away_team_away_goals_conceded': 0}
 
 
-        print("Program execution completed successfully.")
+            for home_row in home_stats:
+                home_team_home_xg, score, home_team_home_conceded_xg = home_row
+                home_team_home_goals, home_team_home_goals_conceded = sort_goals(score)
 
-    except Exception as e:
-        print("An error occurred during program execution:", str(e))
+                #add this information to a dictionary, and we will insert this into the db later on
 
-# Execute the program
-run_program()
+                try: #we need to include a try and accept statement because sometimes data is missing, and we need to omitt this data
+                    home_team_dictionary[home_team]['home_team_home_xg'] += float(home_team_home_xg)
+                    home_team_dictionary[home_team]['home_team_home_goals'] += int(home_team_home_goals)
+                    home_team_dictionary[home_team]['home_team_home_conceded_xg'] += float(home_team_home_conceded_xg)
+                    home_team_dictionary[home_team]['home_team_home_goals_conceded'] += int(home_team_home_goals_conceded)
 
+
+                except Exception as error:
+                    print(f"An error ocurred : {error}")
+            for away_row in away_stats:
+                away_team_away_xg, score, away_team_away_conceded_xg = away_row
+                away_team_away_goals_conceded, away_teams_away_goals = sort_goals(score)
+
+                try: #we need to include a try and accept statement because sometimes data is missing, and we need to omitt this data
+
+                    #add this information to a dictionary, and we will insert this into the db later on
+                    away_team_dictionary[away_team]['away_team_away_xg'] += float(away_team_away_xg)
+                    away_team_dictionary[away_team]['away_team_away_goals'] += int(away_teams_away_goals)
+                    away_team_dictionary[away_team]['away_team_away_conceded_xg'] += float(away_team_away_conceded_xg)
+                    away_team_dictionary[away_team]['away_team_away_goals_conceded'] += int(away_team_away_goals_conceded)
+
+
+                except Exception as error:
+                    print(f"An error ocurred : {error}")
+
+            #now we have the data for each team, we can insert it into the database
+            #inserting for the home team:
+            for home_team,stats in home_team_dictionary.items():
+                try:
+                    self.cursor.execute(
+                        f"UPDATE {self.primary_table} SET home_team_home_goals = ?, home_team_home_goals_conceded = ?, home_team_home_xg = ?, home_team_home_conceded_xg = ? WHERE home_team = ?",
+                        (stats['home_team_home_goals'], stats['home_team_home_goals_conceded'],
+                         stats['home_team_home_xg'], stats['home_team_home_conceded_xg'], home_team))
+                    self.connection.commit()
+                except Exception as error:
+                    print(f'An error occured : {error}')
+
+            #inserting the data for the away team
+            for away_team, stats in away_team_dictionary.items():
+                try:
+                    self.cursor.execute(
+                        f"UPDATE {self.primary_table} SET away_team_away_goals = ?, away_team_away_goals_conceded = ?, away_team_away_xg = ?, away_team_away_conceded_xg = ? WHERE away_team = ?",
+                        (stats['away_team_away_goals'], stats['away_team_away_goals_conceded'],
+                         stats['away_team_away_xg'], stats['away_team_away_conceded_xg'], away_team))
+                    self.connection.commit()
+                except Exception as error:
+                    print(f'An error occurred updating away team data: {error}')
+
+    def predictions(self):
+        self.cursor.execute(f'SELECT fixture,home_previous_xg,away_previous_xg,home_team_home_goals,away_team_away_goals,home_team_home_goals_conceded,away_team_away_goals_conceded,home_team_home_xg,away_team_away_xg,home_team_home_conceded_xg,away_team_away_conceded_xg FROM {self.primary_table}') #again,only considering the data we have before the game. included this for the purpose of backtesting
+        data = self.cursor.fetchall()
+        for fixture,home_previous_xg,away_previous_xg,home_team_home_goals,away_team_away_goals,home_team_goals_conceded,away_team_away_goals_conceded,home_team_home_xg,away_team_away_xg,home_team_home_conceded_xg,away_team_away_conceded_xg in data:
+            #calculate the lambda value for the home team
+            scoring_efficiency_home = home_team_home_goals / home_team_home_xg
+            opposition_conceding_efficiency_away = away_team_away_goals_conceded / away_team_away_conceded_xg
+            home_lambda_value = scoring_efficiency_home * home_previous_xg * opposition_conceding_efficiency_away
+
+            #calculate the lambda value for the away team
+            scoring_efficiency_away = away_team_away_goals /away_team_away_xg
+            opposition_conceding_efficiency_home = home_team_goals_conceded / home_team_home_conceded_xg
+            away_lambda_value = scoring_efficiency_away * away_previous_xg * opposition_conceding_efficiency_home
+
+            #work out most probable scorelines
+            home_probability_list = []
+            away_probability_list = []
+            for possible_output in range(15):
+                home_probability_list.append(ppd(home_lambda_value,possible_output))
+                away_probability_list.append(ppd(away_lambda_value,possible_output))
+
+            home_probable_goals = home_probability_list.index(max(home_probability_list)) #finds the most probable outcome
+            away_probable_goals = away_probability_list.index(max(away_probability_list))
+            print(f'{fixture} : {home_probable_goals} - {away_probable_goals}')
+
+a = Database('name',previous_db_file_path,37)
+a.create_table()
+a.get_fixtures()
+a.insert_data_simple()
+a.insert_data_complex()
+a.predictions()
