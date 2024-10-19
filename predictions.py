@@ -23,6 +23,19 @@ def ppd(lambda_value, x):  #  Where X ~ Po(λ),P(X=x)
     probability = (e ** (-lambda_value)) * ((lambda_value ** x) / factorial(x))
     return probability
 
+def probable_goals(lambda_value):
+    #testing the probability of 0-10 goals:
+    probability_list = []
+    for goals in range(0,11):
+        probability_list.append(ppd(lambda_value,goals))
+
+    #finding most probable goal count
+    highest_probability = max(probability_list)
+    probable_goals = probability_list.index(highest_probability)
+
+    return probable_goals
+
+
 class Predictions:
     def __init__(self,db_name,previous_db_file_path,gameweek):
         self.previous_connection = sqlite3.connect(previous_db_file_path)
@@ -206,14 +219,47 @@ class Predictions:
             ))
             self.connection.commit()
 
+    def predictions(self): #will rework this properly after gamework 20
+        #get list of fixtures and stats
+        def simple_models(): #poisson model based off just
+            #retrieve relevant data
+            self.cursor.execute(f'SELECT fixture,home_team_home_goals,home_team_away_goals,away_team_away_goals,away_team_home_goals,away_team_away_games,home_team_away_games,home_team_home_games,away_team_home_games FROM gameweek_{self.gameweek}')
+            data = self.cursor.fetchall()
+            for fixture,home_team_home_goals,home_team_away_goals,away_team_away_goals,away_team_home_goals,away_team_away_games,home_team_away_games,home_team_home_games,away_team_home_games in data:
+                #model 1:
+                #Home goals ∿ Po(λ) : Where λ is avg  goals
+                #away Goals ∿ Po(λ) : Where λ is avg  goals
+
+                #Model 2:
+                # Home goals ∿ Po(λ) : Where λ is avg  goals scored at home
+                # away Goals ∿ Po(λ) : Where λ is avg  goals scored  away
+
+                home_lambda_1 = (home_team_home_goals + home_team_away_goals) / (home_team_away_games + home_team_home_games)
+                away_lambda_1 = (away_team_away_goals + away_team_home_games) / (away_team_away_games + away_team_home_games)
+
+                home_lambda_2 = (home_team_home_goals) / (home_team_home_games)
+                away_lambda_2 = (away_team_away_goals) / (away_team_away_goals)
+
+                print("")
+                print(f"Method 1 Prediction for {fixture} : {probable_goals(home_lambda_1)} - {probable_goals(away_lambda_1)} ")
+                print(f"Method 2 Prediction for {fixture} : {probable_goals(home_lambda_2)} - {probable_goals(away_lambda_2)} ")
+        
+        def complex_models(): #this model works of xg
+            #Model 3:
+            # Home goals ∿ Po(λ) : Where λ is (previous xg * (home goals scored / xg won) * (away team goals conceded / away team xg conceded)
+            # Away goals ∿ Po(λ) : Where λ is (previous xg * (away goals scored / xg won) * (home team goals conceded / home team xg conceded)
+        
+            #Model 4 : the same but only for xg , goals scored at home
+    
+
+        simple_models()
 
 
 
 
 
-
-
-test = Predictions("predictions","premier_league.db",6)
+test = Predictions("predictions","premier_league.db",8)
 test.create_table()
 test.insert_fixtures()
 test.insert_stats()
+test.predictions()
