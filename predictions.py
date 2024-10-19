@@ -243,14 +243,14 @@ class Predictions:
                 print("")
                 print(f"Method 1 Prediction for {fixture} : {probable_goals(home_lambda_1)} - {probable_goals(away_lambda_1)} ")
                 print(f"Method 2 Prediction for {fixture} : {probable_goals(home_lambda_2)} - {probable_goals(away_lambda_2)} ")
-        
+
         def complex_models(): #this model works of xg
             #Model 3:
             # Home goals ∿ Po(λ) : Where λ is (previous xg * (home goals scored / xg won) * (away team goals conceded / away team xg conceded)
             # Away goals ∿ Po(λ) : Where λ is (previous xg * (away goals scored / xg won) * (home team goals conceded / home team xg conceded)
-        
+
             #Model 4 : the same but only for xg , goals scored at home
-    
+            pass
 
         simple_models()
 
@@ -258,7 +258,7 @@ class Predictions:
 
 
 
-test = Predictions("predictions","premier_league.db",8)
+test = Predictions("predictions","premier_league.db",7)
 test.create_table()
 test.insert_fixtures()
 test.insert_stats()
