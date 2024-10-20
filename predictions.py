@@ -234,15 +234,31 @@ class Predictions:
                 # Home goals ∿ Po(λ) : Where λ is avg  goals scored at home
                 # away Goals ∿ Po(λ) : Where λ is avg  goals scored  away
 
+                # model 3:
+                # Home goals ∿ Po(λ) : Where λ is (avg  goals scored by home team + avg goals conceded by away team / 2)
+                # away Goals ∿ Po(λ) : Where λ is (avg  goals scored by away team + avg goals conceded by home team / 2)
+
                 home_lambda_1 = (home_team_home_goals + home_team_away_goals) / (home_team_away_games + home_team_home_games)
                 away_lambda_1 = (away_team_away_goals + away_team_home_games) / (away_team_away_games + away_team_home_games)
 
                 home_lambda_2 = (home_team_home_goals) / (home_team_home_games)
-                away_lambda_2 = (away_team_away_goals) / (away_team_away_goals)
+                away_lambda_2 = (away_team_away_goals) / (away_team_away_games)
 
-                print("")
+
+                self.cursor.execute(f'SELECT home_team_home_goals_conceded,away_team_home_goals_conceded,home_team_away_goals_conceded,away_team_away_goals_conceded FROM gameweek_{self.gameweek} WHERE fixture = ?',(fixture,))
+                home_team_home_goals_conceded,away_team_home_goals_conceded,home_team_away_goals_conceded,away_team_away_goals_conceded = self.cursor.fetchone()
+
+                home_lambda_3 = ((home_lambda_1) + ((away_team_away_goals_conceded + away_team_home_goals_conceded) / (away_team_away_games +away_team_home_games)))
+                away_lambda_3 = (away_lambda_1 + ((home_team_home_goals_conceded + home_team_away_goals_conceded) / (
+                            home_team_home_games + home_team_away_games))) / 2
+
+
                 print(f"Method 1 Prediction for {fixture} : {probable_goals(home_lambda_1)} - {probable_goals(away_lambda_1)} ")
                 print(f"Method 2 Prediction for {fixture} : {probable_goals(home_lambda_2)} - {probable_goals(away_lambda_2)} ")
+                print(f"Method 3 Prediction for {fixture} : {probable_goals(home_lambda_3)} - {probable_goals(away_lambda_3)}")
+                print(f"")
+
+
 
         def complex_models(): #this model works of xg
             #Model 3:
@@ -258,7 +274,7 @@ class Predictions:
 
 
 
-test = Predictions("predictions","premier_league.db",7)
+test = Predictions("predictions","premier_league.db",8)
 test.create_table()
 test.insert_fixtures()
 test.insert_stats()
